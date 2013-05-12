@@ -15,7 +15,7 @@ class rcube():
 
   def __init__(self):
     self.cells = numpy.array([0]*9+[1]*9+[2]*9+
-                             [3]*9+[4]*9+[5]*9, dtype=numpy.int16)
+                             [3]*9+[4]*9+[5]*9, dtype=numpy.int8)
     # self.cells = scipy.sparse.csr_matrix(self.cells)
     # TODO: consider an API for creating this cube instead for testing
     # self.cells = numpy.array(range(54), dtype=numpy.int16)

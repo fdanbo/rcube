@@ -16,7 +16,7 @@ def createRCubeMatrices():
   matrices = []
 
   # rotating the front face
-  rot = numpy.identity(54, numpy.int16)
+  rot = numpy.identity(54, numpy.int8)
   rotate(rot, [0, 2, 8, 6]);
   rotate(rot, [1, 5, 7, 3]);
   rotate(rot, [11, 26, 33, 36])
@@ -25,7 +25,7 @@ def createRCubeMatrices():
   matrices.append(rot)
 
   # rotating the left face
-  rot = numpy.identity(54, numpy.int16)
+  rot = numpy.identity(54, numpy.int8)
   rotate(rot, [9, 11, 17, 15]);
   rotate(rot, [10, 14, 16, 12]);
   rotate(rot, [18, 0, 36, 53])
@@ -34,7 +34,7 @@ def createRCubeMatrices():
   matrices.append(rot)
 
   # rotating the top face
-  rot = numpy.identity(54, numpy.int16)
+  rot = numpy.identity(54, numpy.int8)
   rotate(rot, [18, 20, 26, 24]);
   rotate(rot, [19, 23, 25, 21]);
   rotate(rot, [47, 29, 2, 11])
@@ -43,7 +43,7 @@ def createRCubeMatrices():
   matrices.append(rot)
 
   # rotating the right face
-  rot = numpy.identity(54, numpy.int16)
+  rot = numpy.identity(54, numpy.int8)
   rotate(rot, [27, 29, 35, 33]);
   rotate(rot, [28, 32, 34, 30]);
   rotate(rot, [26, 45, 44, 8])
@@ -52,7 +52,7 @@ def createRCubeMatrices():
   matrices.append(rot)
 
   # rotating the bottom face
-  rot = numpy.identity(54, numpy.int16)
+  rot = numpy.identity(54, numpy.int8)
   rotate(rot, [36, 38, 44, 42]);
   rotate(rot, [37, 41, 43, 39]);
   rotate(rot, [6, 33, 51, 15])
@@ -61,7 +61,7 @@ def createRCubeMatrices():
   matrices.append(rot)
 
   # rotating the back face
-  rot = numpy.identity(54, numpy.int16)
+  rot = numpy.identity(54, numpy.int8)
   rotate(rot, [45, 47, 53, 51]);
   rotate(rot, [46, 50, 52, 48]);
   rotate(rot, [20, 9, 42, 35])
