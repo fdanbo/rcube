@@ -16,9 +16,6 @@ class rcube():
   def __init__(self):
     self.cells = numpy.array([0]*9+[1]*9+[2]*9+
                              [3]*9+[4]*9+[5]*9, dtype=numpy.int8)
-    # self.cells = scipy.sparse.csr_matrix(self.cells)
-    # TODO: consider an API for creating this cube instead for testing
-    # self.cells = numpy.array(range(54), dtype=numpy.int16)
 
   def __repr__(self):
     c = self.cells
@@ -52,74 +49,61 @@ class rcube():
   def lrotateface(self, i): self.rotate(12+i)
 
   def scramble(self):
-    for i in range(1000):
+    for i in range(20):
       self.rotate(random.randint(0, 17))
 
   def findsolution(self):
-    solvedCubeQueue = [rcube()]
-    solvedIDSet = set(x.hash() for x in solvedCubeQueue)
+    solvedCubeQueue = [(rcube(), 0)]
+    solvedIDSet = set(x[0].hash() for x in solvedCubeQueue)
 
-    myCubeQueue = [self.copy()]
-    myCubeIDSet = set(x.hash() for x in myCubeQueue)
+    myCubeQueue = [(self.copy(), 0)]
+    myCubeIDSet = set(x[0].hash() for x in myCubeQueue)
 
-    while True:
-      c1 = solvedCubeQueue.pop(0)
+    solved = False
+    while not solved:
+      c1, depth = solvedCubeQueue.pop(0)
       for i in range(18):
         c2 = c1.copy()
         c2.rotate(i)
         id = c2.hash()
         if id in myCubeIDSet:
           print('solved from solved side!')
+          solved = True
           break
         if id not in solvedIDSet:
           solvedIDSet.add(id)
-          solvedCubeQueue.append(c2)
+          solvedCubeQueue.append((c2, depth+1))
           if len(solvedIDSet)%10000 == 0:
-            print('s1: {n}'.format(n=len(solvedIDSet)))
+            print('s1: {}, depth: {}'.format(len(solvedIDSet), depth))
 
-      c1 = myCubeQueue.pop(0)
+      if solved: break
+
+      c1, depth = myCubeQueue.pop(0)
       for i in range(18):
         c2 = c1.copy()
         c2.rotate(i)
         id = c2.hash()
         if id in solvedIDSet:
           print('solved from my side!')
+          solved = True
           break
         if id not in myCubeIDSet:
           myCubeIDSet.add(id)
-          myCubeQueue.append(c2)
+          myCubeQueue.append((c2, depth+1))
           if len(myCubeIDSet)%10000 == 0:
-            print('s2: {n}'.format(n=len(myCubeIDSet)))
+            print('s2: {}, depth: {}'.format(len(myCubeIDSet), depth))
 
   def id(self):
     return sum([int(x)<<(i*3) for i,x in enumerate(self.cells)])
 
   def hash(self):
-    return hashlib.md5(self.cells)
+    return hashlib.md5(self.cells).hexdigest()
 
 
 def main():
   c = rcube()
   c.scramble()
   c.findsolution()
-
-def search():
-  idset = set()
-  cubeQueue = [(rcube(), 0)]
-  highestDistance = 1
-  while len(cubeQueue)>0:
-    currentCube, d = cubeQueue.pop(0)
-    if d>highestDistance:
-      highestDistance = d
-      print("distance: {d}".format(d=d))
-      print("positions: {p}".format(p=len(idset)))
-    for i in range(6):
-      c = currentCube.copy()
-      c.rotate(i)
-      id = c.id()
-      if id not in idset:
-        idset.add(id)
-        cubeQueue.append((c, d+1))
 
 if __name__ == '__main__':
   main()
