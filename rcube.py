@@ -48,21 +48,33 @@ class rcube():
   def drotateface(self, i): self.rotate(6+i)
   def lrotateface(self, i): self.rotate(12+i)
 
+  @staticmethod
+  def oppositemove(i):
+    # left rotation
+    if i>11: return i-12
+    # double rotation
+    elif i>5: return i
+    # right rotation
+    else: return i+12
+
   def scramble(self):
-    for i in range(20):
+    for i in range(10):
       self.rotate(random.randint(0, 17))
 
   def findsolution(self):
-    solvedCubeQueue = [(rcube(), 0)]
+    solvedCubeQueue = [(rcube(), 0, None)]
     solvedIDSet = set(x[0].hash() for x in solvedCubeQueue)
 
-    myCubeQueue = [(self.copy(), 0)]
+    myCubeQueue = [(self.copy(), 0, None)]
     myCubeIDSet = set(x[0].hash() for x in myCubeQueue)
 
     solved = False
     while not solved:
-      c1, depth = solvedCubeQueue.pop(0)
+      c1, depth, lastMove = solvedCubeQueue.pop(0)
       for i in range(18):
+        # skip same face moves
+        if lastMove is not None and i%6==lastMove%6:
+          continue
         c2 = c1.copy()
         c2.rotate(i)
         id = c2.hash()
@@ -72,14 +84,20 @@ class rcube():
           break
         if id not in solvedIDSet:
           solvedIDSet.add(id)
-          solvedCubeQueue.append((c2, depth+1))
-          if len(solvedIDSet)%10000 == 0:
+          solvedCubeQueue.append((c2, depth+1, i))
+          if len(solvedIDSet)%100000 == 0:
             print('s1: {}, depth: {}'.format(len(solvedIDSet), depth))
+            # for speed testing, stop at 100k
+            #solved = True
+            #break
 
       if solved: break
 
-      c1, depth = myCubeQueue.pop(0)
+      c1, depth, lastMove = myCubeQueue.pop(0)
       for i in range(18):
+        # skip same face moves
+        if lastMove is not None and i%6==lastMove%6:
+          continue
         c2 = c1.copy()
         c2.rotate(i)
         id = c2.hash()
@@ -89,15 +107,12 @@ class rcube():
           break
         if id not in myCubeIDSet:
           myCubeIDSet.add(id)
-          myCubeQueue.append((c2, depth+1))
+          myCubeQueue.append((c2, depth+1, i))
           if len(myCubeIDSet)%10000 == 0:
             print('s2: {}, depth: {}'.format(len(myCubeIDSet), depth))
 
-  def id(self):
-    return sum([int(x)<<(i*3) for i,x in enumerate(self.cells)])
-
   def hash(self):
-    return hashlib.md5(self.cells).hexdigest()
+    return hashlib.md5(self.cells).digest()
 
 
 def main():
