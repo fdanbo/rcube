@@ -63,57 +63,50 @@ class rcube():
       self.rotate(random.randint(0, 17))
 
   def findsolution(self):
-    solvedCubeQueue = [(rcube(), 0, None)]
-    solvedIDSet = set(x[0].hash() for x in solvedCubeQueue)
-
-    myCubeQueue = [(self.copy(), 0, None)]
-    myCubeIDSet = set(x[0].hash() for x in myCubeQueue)
-
-    solved = False
-    while not solved:
-      c1, depth, lastMove = solvedCubeQueue.pop(0)
-      for i in range(18):
-        # skip same face moves
-        if lastMove is not None and i%6==lastMove%6:
-          continue
-        c2 = c1.copy()
-        c2.rotate(i)
-        id = c2.hash()
-        if id in myCubeIDSet:
-          print('solved from solved side!')
-          solved = True
-          break
-        if id not in solvedIDSet:
-          solvedIDSet.add(id)
-          solvedCubeQueue.append((c2, depth+1, i))
-          if len(solvedIDSet)%10000 == 0:
-            print('s1: {}, depth: {}'.format(len(solvedIDSet), depth))
-            # for speed testing, stop at 100k
-            #solved = True
-            #break
-
-      if solved: break
-
-      c1, depth, lastMove = myCubeQueue.pop(0)
-      for i in range(18):
-        # skip same face moves
-        if lastMove is not None and i%6==lastMove%6:
-          continue
-        c2 = c1.copy()
-        c2.rotate(i)
-        id = c2.hash()
-        if id in solvedIDSet:
-          print('solved from my side!')
-          solved = True
-          break
-        if id not in myCubeIDSet:
-          myCubeIDSet.add(id)
-          myCubeQueue.append((c2, depth+1, i))
-          if len(myCubeIDSet)%10000 == 0:
-            print('s2: {}, depth: {}'.format(len(myCubeIDSet), depth))
+    s = solver(self)
+    s.solve()
 
   def hash(self):
     return hashlib.md5(self.cells).digest()
+
+class solver():
+  def __init__(self, cube):
+    solvedCube = rcube()
+
+    # we solve by searching all possible positions from the solved direction and the scrambled
+    # direction, until they intersect.  The queues are the positions to consider next, with the
+    # move depth and last move stored with it in a tuple.
+    self.set1 = set([solvedCube.hash()])
+    self.queue1 = [(solvedCube, 0, None)]
+
+    self.set2 = set([cube.hash()])
+    self.queue2 = [(cube, 0, None)]
+
+  @staticmethod
+  def process_(myqueue, myset, otherset, verbose=False):
+    c1, depth, lastMove = myqueue.pop(0)
+    for i in range(18):
+      # skip same face moves
+      if lastMove is not None and i%6==lastMove%6:
+        continue
+      c2 = c1.copy()
+      c2.rotate(i)
+      id = c2.hash()
+      if id in otherset:
+        # solved!
+        return True
+      if id not in myset:
+        myset.add(id)
+        myqueue.append((c2, depth+1, i))
+        if verbose and len(myset)%10000 == 0:
+          print('positions: {}, depth: {}'.format(len(myset), depth))
+
+  def solve(self):
+    while True:
+      if self.process_(self.queue1, self.set1, self.set2, verbose=True):
+        break
+      if self.process_(self.queue2, self.set2, self.set1, verbose=False):
+        break
 
 def speedtest1():
   c = rcube()
