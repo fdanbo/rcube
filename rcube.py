@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 import hashlib
 import numpy
@@ -57,8 +58,8 @@ class rcube():
     # right rotation
     else: return i+12
 
-  def scramble(self):
-    for i in range(10):
+  def scramble(self, movecount=1000):
+    for i in range(movecount):
       self.rotate(random.randint(0, 17))
 
   def findsolution(self):
@@ -85,7 +86,7 @@ class rcube():
         if id not in solvedIDSet:
           solvedIDSet.add(id)
           solvedCubeQueue.append((c2, depth+1, i))
-          if len(solvedIDSet)%100000 == 0:
+          if len(solvedIDSet)%10000 == 0:
             print('s1: {}, depth: {}'.format(len(solvedIDSet), depth))
             # for speed testing, stop at 100k
             #solved = True
@@ -114,11 +115,24 @@ class rcube():
   def hash(self):
     return hashlib.md5(self.cells).digest()
 
+def speedtest1():
+  c = rcube()
+  for i in range(9):
+    c.rotate(i)
+  print(c)
+  c.findsolution()
 
-def main():
+def speedtest2():
+  c = rcube()
+  for i in range(10):
+    c.rotate(i)
+  print(c)
+  c.findsolution()
+
+def solve():
   c = rcube()
   c.scramble()
   c.findsolution()
 
 if __name__ == '__main__':
-  main()
+  speedtest1()
