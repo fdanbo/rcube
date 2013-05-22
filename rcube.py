@@ -96,8 +96,9 @@ class solver:
         continue
 
       c1 = cube1.rotatecopy(i)
-      c2 = cube2.rotatecopy(i)
       id1 = c1.hash()
+
+      c2 = cube2.rotatecopy(i)
       id2 = c2.hash()
 
       if id1 in self.set2 or id2 in self.set1:
