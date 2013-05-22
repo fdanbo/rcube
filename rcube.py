@@ -85,36 +85,39 @@ class solver:
     # direction, until they intersect.  The queues are the positions to consider next, with the
     # move depth and last move stored with it in a tuple.
     self.set1 = set([solvedCube.hash()])
-    self.queue1 = [(solvedCube, 0, None)]
-
     self.set2 = set([cube.hash()])
-    self.queue2 = [(cube, 0, None)]
+    self.queue = [(solvedCube, cube, 0, None)]
 
-  @staticmethod
-  def processNext_(myqueue, myset, otherset, verbose=False):
-    c1, depth, lastMove = myqueue.pop(0)
+  def processNext_(self):
+    cube1, cube2, d, lm = self.queue.pop(0)
     for i in range(18):
       # skip same face moves
-      if lastMove is not None and i%6==lastMove%6:
+      if lm is not None and i%6==lm%6:
         continue
-      c2 = c1.rotatecopy(i)
-      id = c2.hash()
-      if id in otherset:
+
+      c1 = cube1.rotatecopy(i)
+      c2 = cube2.rotatecopy(i)
+      id1 = c1.hash()
+      id2 = c2.hash()
+
+      if id1 in self.set2 or id2 in self.set1:
         # solved!
+        print('solved, p={}, d={}'.format(len(self.set1), d))
         return True
-      if id not in myset:
-        myset.add(id)
-        myqueue.append((c2, depth+1, i))
-        if verbose and len(myset)%10000 == 0:
-          print('positions: {}, depth: {}'.format(len(myset), depth))
+
+      # we expect either both to be in their sets, or neither
+      if id1 not in self.set1:
+        assert id2 not in self.set2
+        self.set1.add(id1)
+        self.set2.add(id2)
+        self.queue.append((c1, c2, d+1, i))
+        if len(self.set1)%10000 == 0:
+          print('positions: {}, depth: {}'.format(len(self.set1), d))
     return False
 
   def solve(self):
-    while True:
-      if self.processNext_(self.queue1, self.set1, self.set2, verbose=True):
-        break
-      if self.processNext_(self.queue2, self.set2, self.set1, verbose=False):
-        break
+    while not self.processNext_():
+      pass
 
 def speedtest1():
   c = rcube()
@@ -136,4 +139,4 @@ def solve():
   c.findsolution()
 
 if __name__ == '__main__':
-  speedtest2()
+  speedtest1()
