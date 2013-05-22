@@ -11,12 +11,17 @@ import matrices
 # we number the cells on a face as 0-8 from the top-left to the bottom-right.  if there's no
 # top/bottom, or no left/right, this is still deterministic because of the handedness.
 
-class rcube():
+class rcube:
   MATRICES = matrices.createRCubeMatrices()
 
-  def __init__(self):
-    self.cells = numpy.array([0]*9+[1]*9+[2]*9+
-                             [3]*9+[4]*9+[5]*9, dtype=numpy.int8)
+  def __init__(self, initialCells=None):
+    self.cells = (initialCells if initialCells is not None else
+                  numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               1, 1, 1, 1, 1, 1, 1, 1, 1,
+                               2, 2, 2, 2, 2, 2, 2, 2, 2,
+                               3, 3, 3, 3, 3, 3, 3, 3, 3,
+                               4, 4, 4, 4, 4, 4, 4, 4, 4,
+                               5, 5, 5, 5, 5, 5, 5, 5, 5], dtype=numpy.uint8))
 
   def __repr__(self):
     c = self.cells
@@ -45,6 +50,9 @@ class rcube():
   def rotate(self, i):
     self.cells = numpy.dot(self.cells, rcube.MATRICES[i])
 
+  def rotatecopy(self, i):
+    return rcube(numpy.dot(self.cells, rcube.MATRICES[i]))
+
   def rrotateface(self, i): self.rotate(i)
   def drotateface(self, i): self.rotate(6+i)
   def lrotateface(self, i): self.rotate(12+i)
@@ -67,9 +75,9 @@ class rcube():
     s.solve()
 
   def hash(self):
-    return hashlib.md5(self.cells).digest()
+    return ''.join([chr(i) for i in self.cells])
 
-class solver():
+class solver:
   def __init__(self, cube):
     solvedCube = rcube()
 
@@ -83,14 +91,13 @@ class solver():
     self.queue2 = [(cube, 0, None)]
 
   @staticmethod
-  def process_(myqueue, myset, otherset, verbose=False):
+  def processNext_(myqueue, myset, otherset, verbose=False):
     c1, depth, lastMove = myqueue.pop(0)
     for i in range(18):
       # skip same face moves
       if lastMove is not None and i%6==lastMove%6:
         continue
-      c2 = c1.copy()
-      c2.rotate(i)
+      c2 = c1.rotatecopy(i)
       id = c2.hash()
       if id in otherset:
         # solved!
@@ -100,12 +107,13 @@ class solver():
         myqueue.append((c2, depth+1, i))
         if verbose and len(myset)%10000 == 0:
           print('positions: {}, depth: {}'.format(len(myset), depth))
+    return False
 
   def solve(self):
     while True:
-      if self.process_(self.queue1, self.set1, self.set2, verbose=True):
+      if self.processNext_(self.queue1, self.set1, self.set2, verbose=True):
         break
-      if self.process_(self.queue2, self.set2, self.set1, verbose=False):
+      if self.processNext_(self.queue2, self.set2, self.set1, verbose=False):
         break
 
 def speedtest1():
@@ -128,4 +136,4 @@ def solve():
   c.findsolution()
 
 if __name__ == '__main__':
-  speedtest1()
+  speedtest2()
