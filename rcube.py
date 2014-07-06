@@ -107,11 +107,11 @@ class solver:
         self.queue = [(solvedCube, cube, 0, None)]
 
     def processNext_(self):
-        cube1, cube2, d, lm = self.queue.pop(0)
+        cube1, cube2, distance, lastmove = self.queue.pop(0)
 
         for i in range(18):
-            # skip same face moves
-            if lm is not None and i % 6 == lm % 6:
+            # never rotate the same face twice in a row
+            if lastmove is not None and i % 6 == lastmove % 6:
                 continue
 
             c1 = cube1.rotatecopy(i)
@@ -122,17 +122,23 @@ class solver:
 
             if id1 in self.set2 or id2 in self.set1:
                 # solved!
-                print('solved, p={}, d={}'.format(len(self.set1), d))
+                print('solved, positions={}, distance={}'.format(
+                    len(self.set1), distance))
                 return True
 
-            # we expect either both to be in their sets, or neither
+            # if we haven't seen these cubes before, then insert them into the
+            # queue.  note that since we're doing the same sequence of moves on
+            # both cubes, we expect to have either seen both before, or
+            # neither.
             if id1 not in self.set1:
                 assert id2 not in self.set2
-            self.set1.add(id1)
-            self.set2.add(id2)
-            self.queue.append((c1, c2, d+1, i))
-            if len(self.set1) % 10000 == 0:
-                print('positions: {}, depth: {}'.format(len(self.set1), d))
+                self.set1.add(id1)
+                self.set2.add(id2)
+                self.queue.append((c1, c2, distance+1, i))
+                if len(self.set1) % 10000 == 0:
+                    print('positions: {}, distance: {}'.format(
+                        len(self.set1), distance)
+                    )
 
         return False
 
@@ -141,27 +147,17 @@ class solver:
             pass
 
 
-def speedtest1():
+def solve(movecount=None):
     c = rcube()
-    for i in range(9):
-        c.rotate(i)
+    if movecount is None:
+        c.scramble()
+    else:
+        c.scramble(movecount=movecount)
     print(c)
-    c.findsolution()
-
-
-def speedtest2():
-    c = rcube()
-    for i in range(10):
-        c.rotate(i)
-    print(c)
-    c.findsolution()
-
-
-def solve():
-    c = rcube()
-    c.scramble()
     c.findsolution()
 
 
 if __name__ == '__main__':
-    speedtest1()
+    # solve(9)
+    solve(10)
+    # solve()
