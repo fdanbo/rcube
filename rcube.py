@@ -147,7 +147,7 @@ class solver:
             # both cubes, we expect to have either seen both before, or
             # neither.
             if id1 not in self.set1:
-                assert id2 not in self.set2
+                # assert id2 not in self.set2
                 self.set1.add(id1)
                 self.set2.add(id2)
                 self.queue.append((rotatedlist, distance+1, i))
