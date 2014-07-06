@@ -14,16 +14,17 @@ import matrices
 # because of the handedness.
 class rcube:
     MATRICES = matrices.createRCubeMatrices()
+    SOLVED_CELLS = numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                4, 4, 4, 4, 4, 4, 4, 4, 4,
+                                5, 5, 5, 5, 5, 5, 5, 5, 5],
+                               dtype=numpy.uint8)
 
     def __init__(self, initialCells=None):
-        self.cells = (initialCells if initialCells is not None else
-                      numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                   1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                   2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                   3, 3, 3, 3, 3, 3, 3, 3, 3,
-                                   4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                   5, 5, 5, 5, 5, 5, 5, 5, 5],
-                                  dtype=numpy.uint8))
+        self.cells = (initialCells if initialCells is not None
+                      else rcube.SOLVED_CELLS.copy())
 
     def __repr__(self):
         c = self.cells
@@ -99,48 +100,41 @@ class rcube:
         return tuple(self.cells)
 
 
+class rcubelist:
+    def __init__(self, celllists):
+        self.matrix = numpy.array(celllists)
+
+    def rotatecopy(self, i):
+        return rcubelist(numpy.dot(self.matrix, rcube.MATRICES[i]))
+
+    def gethash(self, n):
+        return tuple(self.matrix[n])
+
+
 class solver:
     def __init__(self, cube):
-        solvedCube = rcube()
+        # make a list of the start & end points
+        cubelist = rcubelist([rcube.SOLVED_CELLS, cube.cells])
 
         # we solve by searching all possible positions from the solved
         # direction and the scrambled direction, until they intersect.  The
         # queues are the positions to consider next, with the move depth and
         # last move stored with it in a tuple.
-        self.set1 = set([solvedCube.hash()])
-        self.set2 = set([cube.hash()])
-        self.queue = collections.deque([(solvedCube, cube, 0, None)])
-
-        self.scratchcubes = []
-
-    def rotate_two_cubes_(self, cube1, cube2, i):
-        # rotate into a scratch cube if we can, to save on the numpy
-        # initialization
-        if self.scratchcubes:
-            c1 = self.scratchcubes.pop()
-            cube1.rotateinto(i, out=c1)
-        else:
-            c1 = cube1.rotatecopy(i)
-
-        if self.scratchcubes:
-            c2 = self.scratchcubes.pop()
-            cube2.rotateinto(i, out=c2)
-        else:
-            c2 = cube2.rotatecopy(i)
-
-        return c1, c2
+        self.set1 = set([cubelist.gethash(0)])
+        self.set2 = set([cubelist.gethash(1)])
+        self.queue = collections.deque([(cubelist, 0, None)])
 
     def processNext_(self):
-        cube1, cube2, distance, lastmove = self.queue.popleft()
+        cubelist, distance, lastmove = self.queue.popleft()
 
         for i in range(18):
             # never rotate the same face twice in a row
             if lastmove is not None and i % 6 == lastmove % 6:
                 continue
 
-            c1, c2 = self.rotate_two_cubes_(cube1, cube2, i)
-            id1 = c1.hash()
-            id2 = c2.hash()
+            rotatedlist = cubelist.rotatecopy(i)
+            id1 = rotatedlist.gethash(0)
+            id2 = rotatedlist.gethash(1)
 
             if id1 in self.set2 or id2 in self.set1:
                 # solved!
@@ -153,20 +147,15 @@ class solver:
             # both cubes, we expect to have either seen both before, or
             # neither.
             if id1 not in self.set1:
-                # assert id2 not in self.set2
+                assert id2 not in self.set2
                 self.set1.add(id1)
                 self.set2.add(id2)
-                self.queue.append((c1, c2, distance+1, i))
+                self.queue.append((rotatedlist, distance+1, i))
                 if len(self.set1) % 10000 == 0:
                     print('positions: {}, distance: {}'.format(
                         len(self.set1), distance)
                     )
-            else:
-                self.scratchcubes.append(c1)
-                self.scratchcubes.append(c2)
 
-        self.scratchcubes.append(cube1)
-        self.scratchcubes.append(cube2)
         return False
 
     def solve(self):
