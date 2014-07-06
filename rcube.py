@@ -15,6 +15,7 @@ class rcube:
     MATRICES = matrices.createRCubeMatrices()
 
     def __init__(self, initialCells=None):
+        self._hash = None
         self.cells = (initialCells if initialCells is not None else
                       numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0,
                                    1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -44,12 +45,13 @@ class rcube:
            c[40], c[41], c[42], c[43], c[44])
         return s
 
-    def copy(self):
+    def clone(self):
         c = rcube()
         c.cells = self.cells.copy()
         return c
 
     def rotate(self, i):
+        self._hash = None
         self.cells = numpy.dot(self.cells, rcube.MATRICES[i])
 
     def rotatecopy(self, i):
@@ -66,14 +68,14 @@ class rcube:
 
     @staticmethod
     def oppositemove(i):
-        # left rotation
         if i > 11:
+            # left rotation
             return i-12
-        # double rotation
         elif i > 5:
+            # double rotation
             return i
-        # right rotation
         else:
+            # right rotation
             return i+12
 
     def scramble(self, movecount=1000):
@@ -85,9 +87,11 @@ class rcube:
         s.solve()
 
     def hash(self):
-        bytelist = [(i << 3)+j for i, j in zip(self.cells[::2],
-                                               self.cells[1::2])]
-        return ''.join([chr(i) for i in bytelist])
+        if self._hash is None:
+            bytelist = [(i << 3)+j for i, j in zip(self.cells[::2],
+                                                   self.cells[1::2])]
+            self._hash = ''.join([chr(i) for i in bytelist])
+        return self._hash
 
 
 class solver:
