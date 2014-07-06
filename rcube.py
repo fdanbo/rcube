@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import collections
+import itertools
 import numpy
 import random
 
@@ -15,7 +17,6 @@ class rcube:
     MATRICES = matrices.createRCubeMatrices()
 
     def __init__(self, initialCells=None):
-        self._hash = None
         self.cells = (initialCells if initialCells is not None else
                       numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0,
                                    1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -51,7 +52,6 @@ class rcube:
         return c
 
     def rotate(self, i):
-        self._hash = None
         self.cells = numpy.dot(self.cells, rcube.MATRICES[i])
 
     def rotatecopy(self, i):
@@ -78,20 +78,23 @@ class rcube:
             # right rotation
             return i+12
 
-    def scramble(self, movecount=1000):
+    def scramble(self, movecount=1000, deterministic=False):
+        if deterministic:
+            oldstate = random.getstate()
+            random.seed('deterministic seed')
+
         for i in range(movecount):
             self.rotate(random.randint(0, 17))
+
+        if deterministic:
+            random.setstate(oldstate)
 
     def findsolution(self):
         s = solver(self)
         s.solve()
 
     def hash(self):
-        if self._hash is None:
-            bytelist = [(i << 3)+j for i, j in zip(self.cells[::2],
-                                                   self.cells[1::2])]
-            self._hash = ''.join([chr(i) for i in bytelist])
-        return self._hash
+        return tuple(self.cells)
 
 
 class solver:
@@ -104,10 +107,10 @@ class solver:
         # last move stored with it in a tuple.
         self.set1 = set([solvedCube.hash()])
         self.set2 = set([cube.hash()])
-        self.queue = [(solvedCube, cube, 0, None)]
+        self.queue = collections.deque([(solvedCube, cube, 0, None)])
 
     def processNext_(self):
-        cube1, cube2, distance, lastmove = self.queue.pop(0)
+        cube1, cube2, distance, lastmove = self.queue.popleft()
 
         for i in range(18):
             # never rotate the same face twice in a row
@@ -152,12 +155,12 @@ def solve(movecount=None):
     if movecount is None:
         c.scramble()
     else:
-        c.scramble(movecount=movecount)
+        c.scramble(movecount=movecount,
+                   deterministic=True)
     print(c)
     c.findsolution()
 
 
 if __name__ == '__main__':
-    # solve(9)
-    solve(10)
+    solve(12)
     # solve()
