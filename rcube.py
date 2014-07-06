@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import collections
-import itertools
 import numpy
 import random
 
@@ -57,6 +56,9 @@ class rcube:
     def rotatecopy(self, i):
         return rcube(numpy.dot(self.cells, rcube.MATRICES[i]))
 
+    def rotateinto(self, i, out):
+        numpy.dot(self.cells, rcube.MATRICES[i], out=out.cells)
+
     def rrotateface(self, i):
         self.rotate(i)
 
@@ -109,6 +111,25 @@ class solver:
         self.set2 = set([cube.hash()])
         self.queue = collections.deque([(solvedCube, cube, 0, None)])
 
+        self.scratchcubes = []
+
+    def rotate_two_cubes_(self, cube1, cube2, i):
+        # rotate into a scratch cube if we can, to save on the numpy
+        # initialization
+        if self.scratchcubes:
+            c1 = self.scratchcubes.pop()
+            cube1.rotateinto(i, out=c1)
+        else:
+            c1 = cube1.rotatecopy(i)
+
+        if self.scratchcubes:
+            c2 = self.scratchcubes.pop()
+            cube2.rotateinto(i, out=c2)
+        else:
+            c2 = cube2.rotatecopy(i)
+
+        return c1, c2
+
     def processNext_(self):
         cube1, cube2, distance, lastmove = self.queue.popleft()
 
@@ -117,10 +138,8 @@ class solver:
             if lastmove is not None and i % 6 == lastmove % 6:
                 continue
 
-            c1 = cube1.rotatecopy(i)
+            c1, c2 = self.rotate_two_cubes_(cube1, cube2, i)
             id1 = c1.hash()
-
-            c2 = cube2.rotatecopy(i)
             id2 = c2.hash()
 
             if id1 in self.set2 or id2 in self.set1:
@@ -134,7 +153,7 @@ class solver:
             # both cubes, we expect to have either seen both before, or
             # neither.
             if id1 not in self.set1:
-                assert id2 not in self.set2
+                # assert id2 not in self.set2
                 self.set1.add(id1)
                 self.set2.add(id2)
                 self.queue.append((c1, c2, distance+1, i))
@@ -142,7 +161,12 @@ class solver:
                     print('positions: {}, distance: {}'.format(
                         len(self.set1), distance)
                     )
+            else:
+                self.scratchcubes.append(c1)
+                self.scratchcubes.append(c2)
 
+        self.scratchcubes.append(cube1)
+        self.scratchcubes.append(cube2)
         return False
 
     def solve(self):
