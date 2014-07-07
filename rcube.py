@@ -127,14 +127,15 @@ class solver:
     def processNext_(self):
         cubelist, distance, lastmove = self.queue.popleft()
 
+        allrotations = cubelist.allrotations()
+
         for i in range(18):
             # never rotate the same face twice in a row
             if lastmove is not None and i % 6 == lastmove % 6:
                 continue
 
-            rotatedlist = cubelist.rotatecopy(i)
-            id1 = rotatedlist.gethash(0)
-            id2 = rotatedlist.gethash(1)
+            id1 = tuple(allrotations[0, i])
+            id2 = tuple(allrotations[1, i])
 
             solved_distance = None
             if id1 in self.set2:
@@ -154,7 +155,8 @@ class solver:
                 # assert id2 not in self.set2
                 self.set1[id1] = distance+1
                 self.set2[id2] = distance+1
-                self.queue.append((rotatedlist, distance+1, i))
+                self.queue.append(
+                    (rcubelist(allrotations[:, i]), distance+1, i))
                 if len(self.set1) % 10000 == 0:
                     print('positions: {}, distance: {}'.format(
                         len(self.set1), distance)

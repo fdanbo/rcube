@@ -120,6 +120,13 @@ class RCubeTestCase(unittest.TestCase):
         cubelist = rcube.rcubelist([c1.cells, c2.cells])
         allrotations = cubelist.allrotations()
 
+        for i, c in enumerate([c1, c2]):
+            for j in range(18):
+                rotated_cube_1 = c.rotatecopy(j)
+                rotated_cube_2 = rcube.rcube(allrotations[i][j])
+                self.assert_cube(rotated_cube_2)
+                self.assertEqual(rotated_cube_1.hash(), rotated_cube_2.hash())
+
     def test_scrambled_cubes(self):
         for i in range(100):
             c = rcube.rcube()
