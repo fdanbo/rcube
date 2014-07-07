@@ -83,4 +83,4 @@ def createRCubeMatrices():
     matrices += doubleMoveMatrices
     matrices += leftMoveMatrices
 
-    return matrices
+    return numpy.array(matrices)

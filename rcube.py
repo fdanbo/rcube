@@ -3,6 +3,7 @@
 import collections
 import numpy
 import random
+import time
 
 import matrices
 
@@ -92,10 +93,6 @@ class rcube:
         if deterministic:
             random.setstate(oldstate)
 
-    def findsolution(self):
-        s = solver(self)
-        s.solve()
-
     def hash(self):
         return tuple(self.cells)
 
@@ -110,6 +107,9 @@ class rcubelist:
     def gethash(self, n):
         return tuple(self.matrix[n])
 
+    def allrotations(self):
+        return numpy.dot(self.matrix, rcube.MATRICES)
+
 
 class solver:
     def __init__(self, cube):
@@ -120,8 +120,8 @@ class solver:
         # direction and the scrambled direction, until they intersect.  The
         # queues are the positions to consider next, with the move depth and
         # last move stored with it in a tuple.
-        self.set1 = set([cubelist.gethash(0)])
-        self.set2 = set([cubelist.gethash(1)])
+        self.set1 = {cubelist.gethash(0): 0}
+        self.set2 = {cubelist.gethash(1): 0}
         self.queue = collections.deque([(cubelist, 0, None)])
 
     def processNext_(self):
@@ -136,11 +136,15 @@ class solver:
             id1 = rotatedlist.gethash(0)
             id2 = rotatedlist.gethash(1)
 
-            if id1 in self.set2 or id2 in self.set1:
-                # solved!
-                print('solved, positions={}, distance={}'.format(
-                    len(self.set1), distance))
-                return True
+            solved_distance = None
+            if id1 in self.set2:
+                solved_distance = self.set2[id1]
+            elif id2 in self.set1:
+                solved_distance = self.set1[id2]
+
+            if solved_distance is not None:
+                # solved! return the total distance between start and end.
+                return distance + solved_distance
 
             # if we haven't seen these cubes before, then insert them into the
             # queue.  note that since we're doing the same sequence of moves on
@@ -148,19 +152,34 @@ class solver:
             # neither.
             if id1 not in self.set1:
                 # assert id2 not in self.set2
-                self.set1.add(id1)
-                self.set2.add(id2)
+                self.set1[id1] = distance+1
+                self.set2[id2] = distance+1
                 self.queue.append((rotatedlist, distance+1, i))
                 if len(self.set1) % 10000 == 0:
                     print('positions: {}, distance: {}'.format(
                         len(self.set1), distance)
                     )
 
+        # was not solved on this iteration
         return False
 
     def solve(self):
-        while not self.processNext_():
-            pass
+        starttime = time.time()
+
+        while True:
+            result = self.processNext_()
+            if result is not False:
+                move_count = result
+                break
+
+        endtime = time.time()
+        positions_considered = len(self.set1)+len(self.set2)
+        print('solved, positions={}, moves={}'.format(
+            positions_considered, move_count))
+
+        total_seconds = (endtime - starttime)
+        throughput = positions_considered / total_seconds
+        print('throughput: {:.0f} positions/second'.format(throughput))
 
 
 def solve(movecount=None):
@@ -171,7 +190,9 @@ def solve(movecount=None):
         c.scramble(movecount=movecount,
                    deterministic=True)
     print(c)
-    c.findsolution()
+
+    s = solver(c)
+    s.solve()
 
 
 if __name__ == '__main__':
