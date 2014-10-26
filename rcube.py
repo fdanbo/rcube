@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
-import collections
+import cPickle
+import cProfile
+import multiprocessing
+import multiprocessing.queues
 import numpy
+import redis
 import random
 import time
 
@@ -97,87 +101,103 @@ class rcube:
         return tuple(self.cells)
 
 
-class rcubelist:
-    def __init__(self, celllists):
-        self.matrix = numpy.array(celllists)
+class RedisQueue:
+    def __init__(self, name):
+        self.name = name
+        self.redis = redis.StrictRedis(db=4)
 
-    def rotatecopy(self, i):
-        return rcubelist(numpy.dot(self.matrix, rcube.MATRICES[i]))
+    def clear(self):
+        self.redis.delete(self.name)
 
-    def gethash(self, n):
-        return tuple(self.matrix[n])
+    def put(self, val):
+        s = cPickle.dumps(val)
+        self.redis.rpush(self.name, s)
 
-    def allrotations(self):
-        return numpy.dot(self.matrix, rcube.MATRICES)
+    def get(self):
+        key, s = self.redis.blpop(self.name)
+        return cPickle.loads(s)
+
+
+def rotator_process(stop_event):
+    incoming_queue = RedisQueue('r')
+    outgoing_queue = RedisQueue('c')
+    while not stop_event.is_set():
+        twocubes, distance = incoming_queue.get()
+        allrotations = numpy.dot(twocubes, rcube.MATRICES)
+        for i in range(allrotations.shape[1]):
+            outgoing_queue.put((allrotations[:, i], distance+1))
+
+
+def dup_checker_process(startcubes, stop_event):
+    incoming_queue = RedisQueue('c')
+    outgoing_queue = RedisQueue('r')
+    set1 = {tuple(startcubes[0]): 0}
+    set2 = {tuple(startcubes[1]): 0}
+
+    while True:
+        twocubes, distance = incoming_queue.get()
+
+        id1 = tuple(twocubes[0])
+        id2 = tuple(twocubes[1])
+
+        solved_distance = None
+        if id1 in set2:
+            solved_distance = set2[id1]
+        elif id2 in set1:
+            solved_distance = set1[id2]
+
+        if solved_distance is not None:
+            # solved! return the (distance, positions_considered)
+            stop_event.set()
+            return (distance + solved_distance,
+                    len(set1) + len(set2))
+
+        if id1 not in set1:
+            # not seen before, go ahead and compute rotations
+            assert id2 not in set2
+            set1[id1] = distance
+            set2[id2] = distance
+            if len(set1) % 10000 == 0:
+                print('{}, depth={}'.format(len(set1), distance))
+            outgoing_queue.put((twocubes, distance))
 
 
 class solver:
     def __init__(self, cube):
-        # make a list of the start & end points
-        cubelist = rcubelist([rcube.SOLVED_CELLS, cube.cells])
+        self.twocubes = (rcube.SOLVED_CELLS, cube.cells)
+        self.stop_event = multiprocessing.Event()
 
-        # we solve by searching all possible positions from the solved
-        # direction and the scrambled direction, until they intersect.  The
-        # queues are the positions to consider next, with the move depth and
-        # last move stored with it in a tuple.
-        self.set1 = {cubelist.gethash(0): 0}
-        self.set2 = {cubelist.gethash(1): 0}
-        self.queue = collections.deque([(cubelist, 0, None)])
+        process_count = 3
 
-    def processNext_(self):
-        cubelist, distance, lastmove = self.queue.popleft()
-
-        allrotations = cubelist.allrotations()
-
-        for i in range(18):
-            # never rotate the same face twice in a row
-            if lastmove is not None and i % 6 == lastmove % 6:
-                continue
-
-            id1 = tuple(allrotations[0, i])
-            id2 = tuple(allrotations[1, i])
-
-            solved_distance = None
-            if id1 in self.set2:
-                solved_distance = self.set2[id1]
-            elif id2 in self.set1:
-                solved_distance = self.set1[id2]
-
-            if solved_distance is not None:
-                # solved! return the total distance between start and end.
-                return distance + solved_distance
-
-            # if we haven't seen these cubes before, then insert them into the
-            # queue.  note that since we're doing the same sequence of moves on
-            # both cubes, we expect to have either seen both before, or
-            # neither.
-            if id1 not in self.set1:
-                # assert id2 not in self.set2
-                self.set1[id1] = distance+1
-                self.set2[id2] = distance+1
-                self.queue.append(
-                    (rcubelist(allrotations[:, i]), distance+1, i))
-                if len(self.set1) % 10000 == 0:
-                    print('positions: {}, distance: {}'.format(
-                        len(self.set1), distance)
-                    )
-
-        # was not solved on this iteration
-        return False
+        self.rotator_processes = [
+            multiprocessing.Process(
+                target=rotator_process,
+                args=(self.stop_event,))
+            for i in range(process_count)]
 
     def solve(self):
         starttime = time.time()
 
-        while True:
-            result = self.processNext_()
-            if result is not False:
-                move_count = result
-                break
+        rotate_queue = RedisQueue('r')
+        rotate_queue.clear()
+
+        check_queue = RedisQueue('c')
+        check_queue.clear()
+
+        rotate_queue.put((self.twocubes, 0))
+        for p in self.rotator_processes:
+            p.start()
+        move_count, positions_considered = 1, 1
+        cProfile.runctx(
+            'dup_checker_process(self.twocubes, self.stop_event)',
+            globals(), {'self': self})
 
         endtime = time.time()
-        positions_considered = len(self.set1)+len(self.set2)
-        print('solved, positions={}, moves={}'.format(
-            positions_considered, move_count))
+        rotate_queue.clear()
+        check_queue.clear()
+
+        print('solved, moves={}, positions={}'.format(
+            move_count, positions_considered))
 
         total_seconds = (endtime - starttime)
         throughput = positions_considered / total_seconds
@@ -198,5 +218,6 @@ def solve(movecount=None):
 
 
 if __name__ == '__main__':
-    solve(12)
+    solve(10)
+    # solve(12)
     # solve()
